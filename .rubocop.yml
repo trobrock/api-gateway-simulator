@@ -1,0 +1,2 @@
+inherit_from:
+  - https://raw.githubusercontent.com/trobrock/style-guides/master/ruby-style.yml
