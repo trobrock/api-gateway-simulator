@@ -1,7 +1,5 @@
 #!/usr/bin/env ruby
 
-require 'bundler'
-Bundler.setup
 require 'slop'
 require_relative '../lib/dev_server.rb'
 
