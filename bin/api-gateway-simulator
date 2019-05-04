@@ -3,7 +3,7 @@
 require 'bundler'
 Bundler.setup
 require 'slop'
-require_relative '../dev_server.rb'
+require_relative '../lib/dev_server.rb'
 
 opts = Slop::Options.new
 opts.banner = 'usage: api-gateway-simulator [options]'
