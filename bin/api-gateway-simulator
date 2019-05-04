@@ -19,7 +19,6 @@ opts.string '--handler', 'the lambda handler', required: true
 opts.separator ''
 opts.separator 'Docker options:'
 opts.array '-e', '--env', 'custom environment variables to set in docker', delimiter: nil
-opts.string '-i', '--image', 'the docker image to run in'
 opts.string '-n', '--network', 'the docker network to run in'
 opts.string '--docker-sync', 'the docker sync volume name to use'
 
@@ -34,8 +33,8 @@ rescue Slop::MissingRequiredOption => e
 end
 
 options = options.to_hash
-options[:image] ||= "lambci/lambda:#{options[:runtime]}"
-system "docker pull #{options[:image]}"
+system "docker pull lambci/lambda:#{options[:image]}"
+system "docker pull lambci/lambda:build-#{options[:image]}"
 
 Application.set(:cli_options, options)
 Application.run!

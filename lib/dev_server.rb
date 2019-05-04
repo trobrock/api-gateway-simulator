@@ -1,8 +1,8 @@
 require 'sinatra/base'
 
 class Application < Sinatra::Base
-  def image
-    settings.cli_options[:image]
+  def runtime
+    settings.cli_options[:runtime]
   end
 
   def docker_sync_name
@@ -45,9 +45,16 @@ class Application < Sinatra::Base
       headers: headers
     }
 
-    docker_build = docker_build ? '' : "-v #{docker_sync_name}:/var/task:nocopy"
+    if docker_build
+      volumes = "-v #{docker_sync_name}:/var/task:nocopy"
+      image = "lambci/lambda:build-#{runtime}"
+    else
+      volumes = ""
+      image = "lambci/lambda:#{runtime}"
+    end
+
     docker_command = <<-CMD
-    docker run #{docker_build} #{docker_environment} #{docker_network} #{image} "#{handler}" \
+    docker run #{volumes} #{docker_environment} #{docker_network} #{image} "#{handler}" \
     '#{JSON.generate(data)}'
     CMD
     resp = system(docker_command)
