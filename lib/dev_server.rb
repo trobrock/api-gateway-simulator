@@ -5,6 +5,10 @@ class Application < Sinatra::Base
     settings.cli_options[:runtime]
   end
 
+  def path
+    settings.cli_options[:path]
+  end
+
   def docker_sync_name
     settings.cli_options[:docker_sync]
   end
@@ -45,13 +49,17 @@ class Application < Sinatra::Base
       headers: headers
     }
 
-    if docker_build
-      volumes = "-v #{docker_sync_name}:/var/task:nocopy"
-      image = "lambci/lambda:build-#{runtime}"
-    else
-      volumes = ""
-      image = "lambci/lambda:#{runtime}"
-    end
+    volumes = if docker_sync_name
+                "-v #{docker_sync_name}:/var/task:nocopy"
+              else
+                "-v #{path}:/var/task"
+              end
+
+    image = if docker_build
+              "lambci/lambda:build-#{runtime}"
+            else
+              "lambci/lambda:#{runtime}"
+            end
 
     docker_command = <<-CMD
     docker run #{volumes} #{docker_environment} #{docker_network} #{image} "#{handler}" \

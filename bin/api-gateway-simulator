@@ -15,6 +15,7 @@ opts.separator ''
 opts.separator 'Lambda options:'
 opts.string '-r', '--runtime', 'the lambda runtime', default: 'ruby2.5'
 opts.string '--handler', 'the lambda handler', required: true
+opts.string '--path', 'the path to the root of the lambda code', default: ENV['PWD']
 
 opts.separator ''
 opts.separator 'Docker options:'
