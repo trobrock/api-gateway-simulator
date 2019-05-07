@@ -61,11 +61,8 @@ class Application < Sinatra::Base
               "lambci/lambda:#{runtime}"
             end
 
-    docker_command = <<-CMD
-    docker run #{volumes} #{docker_environment} #{docker_network} #{image} "#{handler}" \
-    '#{JSON.generate(data)}'
-    CMD
-    resp = system(docker_command)
+    resp = `docker run #{volumes} #{docker_environment} #{docker_network} #{image} "#{handler}" \
+    '#{JSON.generate(data)}'`
     resp = JSON.parse(resp)
 
     [resp['statusCode'], resp['headers'], resp['body']]
