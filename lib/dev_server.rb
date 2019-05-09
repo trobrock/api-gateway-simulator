@@ -25,6 +25,10 @@ class Application < Sinatra::Base
     Array(settings.cli_options[:env]).map { |v| "-e \"#{v}\"" }.join(' ')
   end
 
+  def error_response(message)
+    [502, {}, message]
+  end
+
   helpers do
     def request_headers
       env.reduce({}) do |acc, (k, v)|
@@ -61,9 +65,18 @@ class Application < Sinatra::Base
               "lambci/lambda:#{runtime}"
             end
 
-    resp = `docker run #{volumes} #{docker_environment} #{docker_network} #{image} "#{handler}" \
+    raw_resp = `docker run #{volumes} #{docker_environment} #{docker_network} #{image} "#{handler}" \
     '#{JSON.generate(data)}'`
-    resp = JSON.parse(resp)
+
+    begin
+      resp = JSON.parse(raw_resp)
+    rescue JSON::ParserError
+      return error_response("Failed to parse JSON response from Lambda function: #{raw_resp}")
+    end
+
+    unless resp['body'].is_a?(String)
+      return error_response("Body from Lambda function is not a string: #{resp['body']}")
+    end
 
     [resp['statusCode'], resp['headers'], resp['body']]
   end
