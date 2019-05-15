@@ -81,7 +81,7 @@ class Application < Sinatra::Base
       return error_response("Failed to parse JSON response from Lambda function: #{raw_resp}")
     end
 
-    unless resp['body'].is_a?(String)
+    unless resp['body'].nil? || resp['body'].is_a?(String)
       return error_response("Body from Lambda function is not a string: #{resp['body']}")
     end
 
