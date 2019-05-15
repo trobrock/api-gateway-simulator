@@ -8,7 +8,7 @@ class Application < Sinatra::Base
   end
 
   def path
-    [ENV['PWD'], settings.cli_options['path']].join('/')
+    File.join(Dir.pwd, settings.cli_options['path'])
   end
 
   def docker_sync_name
