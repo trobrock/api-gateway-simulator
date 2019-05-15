@@ -1,28 +1,30 @@
+# frozen_string_literal: true
+
 require 'sinatra/base'
 
 class Application < Sinatra::Base
   def runtime
-    settings.cli_options[:runtime]
+    settings.cli_options['runtime']
   end
 
   def path
-    settings.cli_options[:path]
+    [ENV['PWD'], settings.cli_options['path']].join('/')
   end
 
   def docker_sync_name
-    settings.cli_options[:docker_sync]
+    settings.cli_options['docker_sync']
   end
 
   def docker_network
-    settings.cli_options[:network] ? "--network #{settings.cli_options[:network]}" : ''
+    settings.cli_options['network'] ? "--network #{settings.cli_options['network']}" : ''
   end
 
-  def handler
-    settings.cli_options[:handler]
+  def handlers
+    settings.cli_options['handlers']
   end
 
   def docker_environment
-    Array(settings.cli_options[:env]).map { |v| "-e \"#{v}\"" }.join(' ')
+    Array(settings.cli_options['environment']).map { |k, v| "-e \"#{k}=#{v}\"" }.join(' ')
   end
 
   def error_response(message)
@@ -40,18 +42,23 @@ class Application < Sinatra::Base
 
   post '/*' do
     docker_build = request_headers.delete('x_docker_built')
+    request_path = request.env['PATH_INFO']
+
     data = {
       body: request.body.read,
       resource: '/{proxy+}',
-      path: request.env['PATH_INFO'],
+      path: request_path,
       httpMethod: 'POST',
       isBase64Encoded: false,
       queryStringParameters: params,
       pathParameters: {
-        proxy: request.env['PATH_INFO']
+        proxy: request_path
       },
       headers: headers
     }
+
+    handler = handlers[request_path]
+    return error_response("No handler configured for #{request_path}") if handler.nil?
 
     volumes = if docker_sync_name
                 "-v #{docker_sync_name}:/var/task:nocopy"
@@ -65,8 +72,8 @@ class Application < Sinatra::Base
               "lambci/lambda:#{runtime}"
             end
 
-    raw_resp = `docker run #{volumes} #{docker_environment} #{docker_network} #{image} "#{handler}" \
-    '#{JSON.generate(data)}'`
+    raw_resp = `docker run #{volumes} #{docker_environment} #{docker_network} #{image} \
+    "#{handler}" '#{JSON.generate(data)}'`
 
     begin
       resp = JSON.parse(raw_resp)

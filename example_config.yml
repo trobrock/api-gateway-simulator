@@ -1,0 +1,20 @@
+# The lambda runtime
+runtime: ruby2.5
+
+# The path to the root of the lambda code
+path: /some/folder
+
+# The docker sync volume name to use
+docker_sync: a-sync-volume
+
+# The docker network to run in
+network: my-thing_default
+
+# Custom environment variables to set in docker
+environment:
+  foo: bar
+
+# Map URL path to lambda handler
+handlers:
+  /thing: my_file.thing_handler
+  /other/path: my_file.other_handler

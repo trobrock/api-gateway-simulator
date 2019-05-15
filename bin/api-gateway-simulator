@@ -1,6 +1,8 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
 
 require 'slop'
+require 'yaml'
 require_relative '../lib/dev_server.rb'
 
 opts = Slop::Options.new
@@ -11,17 +13,7 @@ opts.on('-h', '--help', 'displays this help') do
   exit
 end
 
-opts.separator ''
-opts.separator 'Lambda options:'
-opts.string '-r', '--runtime', 'the lambda runtime', default: 'ruby2.5'
-opts.string '--handler', 'the lambda handler', required: true
-opts.string '--path', 'the path to the root of the lambda code', default: ENV['PWD']
-
-opts.separator ''
-opts.separator 'Docker options:'
-opts.array '-e', '--env', 'custom environment variables to set in docker', delimiter: nil
-opts.string '-n', '--network', 'the docker network to run in'
-opts.string '--docker-sync', 'the docker sync volume name to use'
+opts.string '-c', '--config', 'the config file to use', required: true
 
 begin
   parser = Slop::Parser.new(opts)
@@ -34,8 +26,26 @@ rescue Slop::MissingRequiredOption => e
 end
 
 options = options.to_hash
-system "docker pull lambci/lambda:#{options[:runtime]}"
-system "docker pull lambci/lambda:build-#{options[:runtime]}"
 
-Application.set(:cli_options, options)
+unless File.file?(options[:config])
+  puts "Can't find config #{options[:config]}"
+  exit
+end
+
+config = YAML.safe_load(File.read(options[:config]))
+
+if config['runtime'].nil?
+  puts "Missing 'runtime' in #{options[:config]}"
+  exit
+end
+
+if config['handlers'].nil? || config['handlers'].size.zero?
+  puts "No handlers configured in #{options[:config]}"
+  exit
+end
+
+system "docker pull lambci/lambda:#{config['runtime']}"
+system "docker pull lambci/lambda:build-#{config['runtime']}"
+
+Application.set(:cli_options, config)
 Application.run!
