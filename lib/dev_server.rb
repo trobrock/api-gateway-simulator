@@ -31,24 +31,54 @@ class Application < Sinatra::Base
     [502, {}, message]
   end
 
-  helpers do
-    def request_headers
-      env.reduce({}) do |acc, (k, v)|
-        acc[Regexp.last_match(1).downcase] = v if k =~ /^http_(.*)/i
-        acc
-      end
+  def volumes
+    if docker_sync_name
+      "-v #{docker_sync_name}:/var/task:nocopy"
+    else
+      "-v #{path}:/var/task"
     end
   end
 
-  post '/*' do
+  def image
     docker_build = request_headers.delete('x_docker_built')
-    request_path = request.env['PATH_INFO']
 
+    if docker_build
+      "lambci/lambda:build-#{runtime}"
+    else
+      "lambci/lambda:#{runtime}"
+    end
+  end
+
+  def request_path
+    request.env['PATH_INFO']
+  end
+
+  def handler_from_config(http_method)
+    request_path_parts = request_path.split('/')
+
+    handlers.keys.each do |handler_path|
+      path_parts = handler_path.split('/')
+      next if path_parts.size != request_path_parts.size
+
+      path_match = true
+      path_parts.each_with_index do |part, index|
+        path_match &&= (part[0] == ':' || request_path_parts[index] == part)
+      end
+      next unless path_match
+
+      handler = handlers[handler_path][http_method]
+      return handler if handler
+    end
+
+    nil
+  end
+
+  def handle_request(http_method)
     data = {
       body: request.body.read,
       resource: '/{proxy+}',
       path: request_path,
-      httpMethod: 'POST',
+      httpMethod: http_method,
       isBase64Encoded: false,
       queryStringParameters: params,
       pathParameters: {
@@ -57,20 +87,10 @@ class Application < Sinatra::Base
       headers: headers
     }
 
-    handler = handlers[request_path]
-    return error_response("No handler configured for #{request_path}") if handler.nil?
-
-    volumes = if docker_sync_name
-                "-v #{docker_sync_name}:/var/task:nocopy"
-              else
-                "-v #{path}:/var/task"
-              end
-
-    image = if docker_build
-              "lambci/lambda:build-#{runtime}"
-            else
-              "lambci/lambda:#{runtime}"
-            end
+    handler = handler_from_config(http_method)
+    if handler.nil?
+      return error_response("No handler configured for #{http_method} #{request_path}")
+    end
 
     raw_resp = `docker run #{volumes} #{docker_environment} #{docker_network} #{image} \
     "#{handler}" '#{JSON.generate(data)}'`
@@ -86,5 +106,22 @@ class Application < Sinatra::Base
     end
 
     [resp['statusCode'], resp['headers'], resp['body']]
+  end
+
+  helpers do
+    def request_headers
+      env.reduce({}) do |acc, (k, v)|
+        acc[Regexp.last_match(1).downcase] = v if k =~ /^http_(.*)/i
+        acc
+      end
+    end
+  end
+
+  get '/*' do
+    handle_request('GET')
+  end
+
+  post '/*' do
+    handle_request('POST')
   end
 end
