@@ -19,5 +19,5 @@ handlers:
   /thing:
     GET: my_file.thing_handler
     POST: my_file.thing_post_handler
-  /other/path:
+  /other/path/{a_path_param}:
     POST: my_file.other_handler
