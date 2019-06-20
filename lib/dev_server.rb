@@ -62,7 +62,7 @@ class Application < Sinatra::Base
 
       path_match = true
       endpoint_path_parts.each_with_index do |part, index|
-        path_match &&= (part[0] == ':' || request_path_parts[index] == part)
+        path_match &&= (part[0] == '{' || request_path_parts[index] == part)
       end
       next unless path_match
 
@@ -78,7 +78,7 @@ class Application < Sinatra::Base
     path_parameters = {}
 
     endpoint_path.split('/').each_with_index do |part, index|
-      path_parameters[part[1..-1]] = request_path_parts[index] if part[0] == ':'
+      path_parameters[part.gsub(/[\{\}]+/, '')] = request_path_parts[index] if part[0] == '{'
     end
 
     path_parameters
