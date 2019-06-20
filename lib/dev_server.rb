@@ -56,30 +56,40 @@ class Application < Sinatra::Base
   def handler_from_config(http_method)
     request_path_parts = request_path.split('/')
 
-    handlers.keys.each do |handler_path|
-      path_parts = handler_path.split('/')
-      next if path_parts.size != request_path_parts.size
+    handlers.keys.each do |endpoint_path|
+      endpoint_path_parts = endpoint_path.split('/')
+      next if endpoint_path_parts.size != request_path_parts.size
 
       path_match = true
-      path_parts.each_with_index do |part, index|
+      endpoint_path_parts.each_with_index do |part, index|
         path_match &&= (part[0] == ':' || request_path_parts[index] == part)
       end
       next unless path_match
 
-      handler = handlers[handler_path][http_method]
-      return handler if handler
+      handler = handlers[endpoint_path][http_method]
+      return [handler, endpoint_path] if handler
     end
 
     nil
   end
 
-  def proxy_path_parameters
-    parts = request_path.split('/')
-    parts.delete_at(1)
-    parts.join('/')
+  def parse_path_parameters(endpoint_path)
+    request_path_parts = request_path.split('/')
+    path_parameters = {}
+
+    endpoint_path.split('/').each_with_index do |part, index|
+      path_parameters[part[1..-1]] = request_path_parts[index] if part[0] == ':'
+    end
+
+    path_parameters
   end
 
   def handle_request(http_method)
+    handler, endpoint_path = handler_from_config(http_method)
+    if handler.nil?
+      return error_response("No handler configured for #{http_method} #{request_path}")
+    end
+
     data = {
       body: request.body.read,
       resource: '/{proxy+}',
@@ -87,16 +97,9 @@ class Application < Sinatra::Base
       httpMethod: http_method,
       isBase64Encoded: false,
       queryStringParameters: params,
-      pathParameters: {
-        proxy: proxy_path_parameters
-      },
+      pathParameters: parse_path_parameters(endpoint_path),
       headers: headers
     }
-
-    handler = handler_from_config(http_method)
-    if handler.nil?
-      return error_response("No handler configured for #{http_method} #{request_path}")
-    end
 
     raw_resp = `docker run #{volumes} #{docker_environment} #{docker_network} #{image} \
     "#{handler}" '#{JSON.generate(data)}'`
