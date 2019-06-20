@@ -73,6 +73,12 @@ class Application < Sinatra::Base
     nil
   end
 
+  def proxy_path_parameters
+    parts = request_path.split('/')
+    parts.delete_at(1)
+    parts.join('/')
+  end
+
   def handle_request(http_method)
     data = {
       body: request.body.read,
@@ -82,7 +88,7 @@ class Application < Sinatra::Base
       isBase64Encoded: false,
       queryStringParameters: params,
       pathParameters: {
-        proxy: request_path
+        proxy: proxy_path_parameters
       },
       headers: headers
     }
