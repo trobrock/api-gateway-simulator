@@ -16,5 +16,8 @@ environment:
 
 # Map URL path to lambda handler
 handlers:
-  /thing: my_file.thing_handler
-  /other/path: my_file.other_handler
+  /thing:
+    GET: my_file.thing_handler
+    POST: my_file.thing_post_handler
+  /other/path:
+    POST: my_file.other_handler
